@@ -54,6 +54,12 @@ type compileStatus struct {
 	eta     string
 }
 
+type ByPkgname []compileStatus
+
+func (n ByPkgname) Len() int           { return len(n) }
+func (n ByPkgname) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
+func (n ByPkgname) Less(i, j int) bool { return n[i].pkgname < n[j].pkgname }
+
 func init() {
 	common_re := `\((?P<ith>\d+) of (?P<total>\d+)\) (?P<package>[A-Za-z0-9/_-]+)-(?P<version>\d[^ ]+) to /`
 	COMPILE_START_RE = regexp.MustCompile(`>>> emerge ` + common_re)
@@ -162,6 +168,7 @@ func showCurrent(curr map[string]compileHist,
 		})
 
 	}
+	sort.Sort(ByPkgname(ret))
 	return ret, longest
 }
 
@@ -289,6 +296,5 @@ func tabulate(p []compileStatus, longest int) string {
 	for _, c := range p {
 		out = append(out, fmt.Sprintf(tmpl, c.pkgname, c.elapsed, c.eta))
 	}
-	sort.Strings(out)
 	return strings.Join(out, "\n")
 }
