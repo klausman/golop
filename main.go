@@ -34,6 +34,7 @@ var (
 	COMPILE_START_RE    *regexp.Regexp
 	COMPILE_COMPLETE_RE *regexp.Regexp
 	UNMERGE_START_RE    *regexp.Regexp
+	FIRST_PACKAGE_RE    *regexp.Regexp
 	modeCurrent         = flag.Bool("c", false, "Show current compiles")
 	modeHistory         = flag.Bool("e", true, "Show history")
 	modeEstimate        = flag.String("t", "", "Show history of specific package")
@@ -65,6 +66,8 @@ func init() {
 	COMPILE_START_RE = regexp.MustCompile(`>>> emerge ` + common_re)
 	COMPILE_COMPLETE_RE = regexp.MustCompile(`::: completed emerge ` + common_re)
 	UNMERGE_START_RE = regexp.MustCompile(`=== Unmerging... \((?P<package>[A-Za-z0-9\/_-]+)-(?P<version>\d.*)\)`)
+	// A heuristic for portage restarting with --keep-going
+	FIRST_PACKAGE_RE = regexp.MustCompile(`>>> emerge \(1 of`)
 }
 
 func main() {
@@ -220,11 +223,14 @@ func parselog(fd *os.File) ([]compileHist, map[string]compileHist, map[string][]
 			fmt.Fprintf(os.Stderr, "Could not parse timestamp on line %d: %+v\n", lineno, err)
 		}
 		dt := time.Unix(ts, 0)
-		if message == "*** exiting successfully." || message == "*** terminating." {
+		if message == "*** exiting successfully." ||
+			message == "*** terminating." ||
+			FIRST_PACKAGE_RE.MatchString(message) {
 			// discard all open sessions
 			inprogress = make(map[string]compileHist)
 			//unmerges = make(map[string]compileHist)
 		}
+
 		if COMPILE_START_RE.MatchString(message) {
 			values := getReMatches(COMPILE_START_RE, message)
 			c := compileHist{
