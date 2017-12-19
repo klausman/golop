@@ -217,6 +217,10 @@ func parselog(fd *os.File) ([]compileHist, map[string]compileHist, map[string][]
 		line := scanner.Text()
 		lineno++
 		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			// A line we can't parse: we'll have to just ignore it
+			continue
+		}
 		message := strings.Join(fields[1:], " ")
 		ts, err := strconv.ParseInt(fields[0][:len(fields[0])-1], 10, 0)
 		if err != nil {
