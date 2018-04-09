@@ -28,6 +28,7 @@ import (
 
 const (
 	NANOSPERSEC = 1E9
+	VERSION     = "0.0.1"
 )
 
 var (
@@ -36,8 +37,9 @@ var (
 	UNMERGE_START_RE    *regexp.Regexp
 	FIRST_PACKAGE_RE    *regexp.Regexp
 	modeCurrent         = flag.Bool("c", false, "Show current compiles")
-	modeHistory         = flag.Bool("e", true, "Show history")
 	modeEstimate        = flag.String("t", "", "Show history of specific package")
+	modeHistory         = flag.Bool("e", true, "Show history")
+	modeVersion         = flag.Bool("v", false, "Show golop version information and exit")
 	logfilename         = flag.String("l", "/var/log/emerge.log", "Location of emerge log to parse.")
 )
 
@@ -77,6 +79,11 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not open log file '%s': %s\n", *logfilename, err)
 		os.Exit(1)
+	}
+
+	if *modeVersion {
+		fmt.Printf("golop version %s\n", VERSION)
+		os.Exit(0)
 	}
 
 	if *modeCurrent {

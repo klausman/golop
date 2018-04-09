@@ -48,6 +48,15 @@ been ported to a lot fewer systems than Perl has. One slight upside of using
 Go is that it the binary can simply be copied to machines of a compatible
 architecture (and libc), since it is statically linked.
 
+## Known Bugs
+
+Golop does not cope well with multiple instances of `emerge` currently running,
+or with several having started around the same time and all but one having
+terminated. Doing this right would require a change to the Portage log format.
+Future versions of Golop may implement the same heuristics as `genlop` does.
+
+There are currently no tests.
+
 ## Building
 
 ```
