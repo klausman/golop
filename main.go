@@ -309,7 +309,7 @@ func pkgnameMatch(pkgname, pattern string) bool {
 func tabulate(p []compileStatus, longest int) string {
 	var out []string
 	tmpl := fmt.Sprintf("%%%ds %%10s %%-s", longest)
-	out = append(out, fmt.Sprintf(tmpl, "Package", "elapsed", "ETA"))
+	out = append(out, fmt.Sprintf(tmpl, "Package", "Elapsed", "ETA"))
 	for _, c := range p {
 		out = append(out, fmt.Sprintf(tmpl, c.pkgname, c.elapsed, c.eta))
 	}
