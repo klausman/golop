@@ -27,20 +27,20 @@ import (
 )
 
 const (
-	NANOSPERSEC = 1E9
-	VERSION     = "0.0.1"
+	nanosPerSec  = 1E9
+	golopVersion = "0.0.1"
 )
 
 var (
-	COMPILE_START_RE    *regexp.Regexp
-	COMPILE_COMPLETE_RE *regexp.Regexp
-	UNMERGE_START_RE    *regexp.Regexp
-	FIRST_PACKAGE_RE    *regexp.Regexp
-	modeCurrent         = flag.Bool("c", false, "Show current compiles")
-	modeEstimate        = flag.String("t", "", "Show history of specific package")
-	modeHistory         = flag.Bool("e", true, "Show history")
-	modeVersion         = flag.Bool("v", false, "Show golop version information and exit")
-	logfilename         = flag.String("l", "/var/log/emerge.log", "Location of emerge log to parse.")
+	compileStartRegEx    *regexp.Regexp
+	compileCompleteRegEx *regexp.Regexp
+	unmergeStartRegEx    *regexp.Regexp
+	firstPackageRegEx    *regexp.Regexp
+	modeCurrent          = flag.Bool("c", false, "Show current compiles")
+	modeEstimate         = flag.String("t", "", "Show history of specific package")
+	modeHistory          = flag.Bool("e", true, "Show history")
+	modeVersion          = flag.Bool("v", false, "Show golop version information and exit")
+	logfilename          = flag.String("l", "/var/log/emerge.log", "Location of emerge log to parse.")
 )
 
 type compileHist struct {
@@ -57,19 +57,19 @@ type compileStatus struct {
 	eta     string
 }
 
-type ByPkgname []compileStatus
+type byPkgname []compileStatus
 
-func (n ByPkgname) Len() int           { return len(n) }
-func (n ByPkgname) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
-func (n ByPkgname) Less(i, j int) bool { return n[i].pkgname < n[j].pkgname }
+func (n byPkgname) Len() int           { return len(n) }
+func (n byPkgname) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
+func (n byPkgname) Less(i, j int) bool { return n[i].pkgname < n[j].pkgname }
 
 func init() {
-	common_re := `\((?P<ith>\d+) of (?P<total>\d+)\) (?P<package>[A-Za-z0-9/_-]+)-(?P<version>\d[^ ]+) to /`
-	COMPILE_START_RE = regexp.MustCompile(`>>> emerge ` + common_re)
-	COMPILE_COMPLETE_RE = regexp.MustCompile(`::: completed emerge ` + common_re)
-	UNMERGE_START_RE = regexp.MustCompile(`=== Unmerging... \((?P<package>[A-Za-z0-9\/_-]+)-(?P<version>\d.*)\)`)
+	commonRegEx := `\((?P<ith>\d+) of (?P<total>\d+)\) (?P<package>[A-Za-z0-9/_-]+)-(?P<version>\d[^ ]+) to /`
+	compileStartRegEx = regexp.MustCompile(`>>> emerge ` + commonRegEx)
+	compileCompleteRegEx = regexp.MustCompile(`::: completed emerge ` + commonRegEx)
+	unmergeStartRegEx = regexp.MustCompile(`=== Unmerging... \((?P<package>[A-Za-z0-9\/_-]+)-(?P<version>\d.*)\)`)
 	// A heuristic for portage restarting with --keep-going
-	FIRST_PACKAGE_RE = regexp.MustCompile(`>>> emerge \(1 of`)
+	firstPackageRegEx = regexp.MustCompile(`>>> emerge \(1 of`)
 }
 
 func main() {
@@ -82,7 +82,7 @@ func main() {
 	}
 
 	if *modeVersion {
-		fmt.Printf("golop version %s\n", VERSION)
+		fmt.Printf("golop version %s\n", golopVersion)
 		os.Exit(0)
 	}
 
@@ -129,7 +129,7 @@ func main() {
 		durs := durations[pattern]
 		avgdur := avgDuration(durs)
 
-		fmt.Printf("%s\nAverage duration: %+v\n", hists, avgdur.Round(NANOSPERSEC))
+		fmt.Printf("%s\nAverage duration: %+v\n", hists, avgdur.Round(nanosPerSec))
 		os.Exit(0)
 	}
 
@@ -165,7 +165,7 @@ func showCurrent(curr map[string]compileHist,
 			if eta.Seconds() < 0 {
 				etas = "any time now"
 			} else {
-				etas = fmt.Sprintf("%+v", eta.Round(NANOSPERSEC))
+				etas = fmt.Sprintf("%+v", eta.Round(nanosPerSec))
 			}
 		}
 		if len(pkgver) > longest {
@@ -173,12 +173,12 @@ func showCurrent(curr map[string]compileHist,
 		}
 		ret = append(ret, compileStatus{
 			pkgname: pkgver,
-			elapsed: fmt.Sprintf("%+v", elapsed.Round(NANOSPERSEC)),
+			elapsed: fmt.Sprintf("%+v", elapsed.Round(nanosPerSec)),
 			eta:     etas,
 		})
 
 	}
-	sort.Sort(ByPkgname(ret))
+	sort.Sort(byPkgname(ret))
 	return ret, longest
 }
 
@@ -187,11 +187,11 @@ func showHistory(compiles []compileHist, start time.Time) string {
 	var shown int
 	for _, compile := range compiles {
 		if compile.start.UnixNano() >= start.UnixNano() {
-			shown += 1
+			shown++
 			ret = append(ret,
 				fmt.Sprintf("%s: %s-%s: %+v",
 					compile.start.Format(time.RFC3339), compile.pkgname, compile.pkgversion,
-					compile.dur.Round(NANOSPERSEC)))
+					compile.dur.Round(nanosPerSec)))
 		}
 	}
 	ret = append(ret,
@@ -236,14 +236,14 @@ func parselog(fd *os.File) ([]compileHist, map[string]compileHist, map[string][]
 		dt := time.Unix(ts, 0)
 		if message == "*** exiting successfully." ||
 			message == "*** terminating." ||
-			FIRST_PACKAGE_RE.MatchString(message) {
+			firstPackageRegEx.MatchString(message) {
 			// discard all open sessions
 			inprogress = make(map[string]compileHist)
 			//unmerges = make(map[string]compileHist)
 		}
 
-		if COMPILE_START_RE.MatchString(message) {
-			values := getReMatches(COMPILE_START_RE, message)
+		if compileStartRegEx.MatchString(message) {
+			values := getReMatches(compileStartRegEx, message)
 			c := compileHist{
 				start:      dt,
 				pkgname:    values["package"],
@@ -252,8 +252,8 @@ func parselog(fd *os.File) ([]compileHist, map[string]compileHist, map[string][]
 			inprogress[fmt.Sprintf("%v-%v", values["package"], values["version"])] = c
 			continue
 		}
-		if UNMERGE_START_RE.MatchString(message) {
-			values := getReMatches(UNMERGE_START_RE, message)
+		if unmergeStartRegEx.MatchString(message) {
+			values := getReMatches(unmergeStartRegEx, message)
 			c := compileHist{
 				start:      dt,
 				pkgname:    values["package"],
@@ -262,8 +262,8 @@ func parselog(fd *os.File) ([]compileHist, map[string]compileHist, map[string][]
 			unmerges[fmt.Sprintf("%v-%v", values["package"], values["version"])] = c
 			continue
 		}
-		if COMPILE_COMPLETE_RE.MatchString(message) {
-			values := getReMatches(COMPILE_COMPLETE_RE, message)
+		if compileCompleteRegEx.MatchString(message) {
+			values := getReMatches(compileCompleteRegEx, message)
 			pkgver := fmt.Sprintf("%v-%v", values["package"], values["version"])
 			c, ok := inprogress[pkgver]
 			if !ok {
