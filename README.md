@@ -6,7 +6,7 @@ A pure Go re-implementation of genlop
 
 On Gentoo systems, [genlop](https://wiki.gentoo.org/wiki/Project:Perl) is the
 tool of choice to get information about current and past compilations,
-including the history of packages merged, the average time a compile takes and
+including the history of packages merged, the median time a compile takes and
 an estimate when any currently running compilations will finish. The tool is
 written in Perl and all of its output is hard-coded. Since it was originally
 written at a time when people would rarely have more than two or three
@@ -48,12 +48,14 @@ been ported to a lot fewer systems than Perl has. One slight upside of using
 Go is that it the binary can simply be copied to machines of a compatible
 architecture (and libc), since it is statically linked.
 
-## Known Bugs
+## Known Bugs and Limitations
 
-Golop does not cope well with multiple instances of `emerge` currently running,
-or with several having started around the same time and all but one having
-terminated. Doing this right would require a change to the Portage log format.
-Future versions of Golop may implement the same heuristics as `genlop` does.
+Golop tries to figure out the list of currently running compiles by looking
+at the argv of running processes (via the `proc` filesystem). In places where
+this filesystem is not accessible, it will break. Golop also relies on the
+format of the command line mangling the Portage sandbox does (package names
+enclosed in `[]` and `sandbox` being part of `argv[0]`), so it will also break
+if Portage ever changes that format.
 
 There are currently no tests.
 
