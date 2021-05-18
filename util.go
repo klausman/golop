@@ -32,8 +32,6 @@ var (
 	compileStartRegEx    *regexp.Regexp
 	compileCompleteRegEx *regexp.Regexp
 	unmergeStartRegEx    *regexp.Regexp
-	firstPackageRegEx    *regexp.Regexp
-	numsRegEx            = regexp.MustCompile(`[0-9]+`)
 	splitpkgverRegEx     *regexp.Regexp
 	latestStart          map[string]int64
 
@@ -45,7 +43,6 @@ func init() {
 	compileStartRegEx = regexp.MustCompile(`>>> emerge ` + commonRegEx)
 	compileCompleteRegEx = regexp.MustCompile(`::: completed emerge ` + commonRegEx)
 	unmergeStartRegEx = regexp.MustCompile(`=== Unmerging... \((?P<package>[A-Za-z0-9\/_-]+)-(?P<version>\d.*)\)`)
-	firstPackageRegEx = regexp.MustCompile(`>>> emerge \(1 of`)
 	splitpkgverRegEx = regexp.MustCompile(`(?P<package>[A-Za-z0-9/_-]+)-(?P<version>\d[^ ]+)`)
 	latestStart = make(map[string]int64)
 }
@@ -129,16 +126,6 @@ func findMedDurations(fd *os.File) map[string]time.Duration {
 
 func extractEmStart(message string, dt time.Time) (string, compileHist) {
 	values := getReMatches(compileStartRegEx, message)
-	c := compileHist{
-		start:      dt,
-		pkgname:    values["package"],
-		pkgversion: values["version"],
-	}
-	return fmt.Sprintf("%s-%s", values["package"], values["version"]), c
-}
-
-func extractUmStart(message string, dt time.Time) (string, compileHist) {
-	values := getReMatches(unmergeStartRegEx, message)
 	c := compileHist{
 		start:      dt,
 		pkgname:    values["package"],

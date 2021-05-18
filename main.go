@@ -145,9 +145,3 @@ type compileStatus struct {
 	eta     string
 	phase   string
 }
-
-type byPkgname []compileStatus
-
-func (n byPkgname) Len() int           { return len(n) }
-func (n byPkgname) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
-func (n byPkgname) Less(i, j int) bool { return n[i].pkgname < n[j].pkgname }
