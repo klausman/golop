@@ -16,15 +16,16 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/shirou/gopsutil/v3/process"
 )
 
 var (
@@ -35,6 +36,8 @@ var (
 	numsRegEx            = regexp.MustCompile(`[0-9]+`)
 	splitpkgverRegEx     *regexp.Regexp
 	latestStart          map[string]int64
+
+	procDir = flag.String("d", "/proc", "Root of /proc filesystem")
 )
 
 func init() {
@@ -194,23 +197,18 @@ func tabulate(p []compileStatus, longest int) string {
 
 func runningCompiles() ([]runningCompile, error) {
 	var currpkgs []runningCompile
-	pl, err := process.Processes()
+	pl, err := Processes(*procDir)
 	if err != nil {
 		return nil, err
 	}
 	for _, p := range pl {
-		args, err := p.CmdlineSlice()
-		if err != nil {
-			// Race: process exited between call to Processes() and now
-			continue
-		}
-		if len(args) > 1 &&
-			strings.HasPrefix(args[0], "[") &&
-			strings.HasSuffix(args[0], "sandbox") {
+		if len(p.Cmdline) > 1 &&
+			strings.HasPrefix(p.Cmdline[0], "[") &&
+			strings.HasSuffix(p.Cmdline[0], "sandbox") {
 
 			var s time.Time
-			pkg := strings.Split(args[0][1:], "]")[0]
-			tok := strings.Split(args[len(args)-1], " ")
+			pkg := strings.Split(p.Cmdline[0][1:], "]")[0]
+			tok := strings.Split(p.Cmdline[len(p.Cmdline)-1], " ")
 			phase := tok[len(tok)-1]
 			p, _ := splitpkgver(pkg)
 			if ct, ok := latestStart[p]; ok {
@@ -222,28 +220,6 @@ func runningCompiles() ([]runningCompile, error) {
 		}
 	}
 	return currpkgs, nil
-}
-
-func findMainProc(p process.Process) (*process.Process, error) {
-	var pp *process.Process
-	pp, err := p.Parent()
-	if err != nil {
-		return nil, err
-	}
-	for {
-		pp, err := pp.Parent()
-		if err != nil {
-			return nil, err
-		}
-		t, err := pp.CmdlineSlice()
-		if err != nil || len(t) < 3 {
-			return nil, err
-		}
-		if strings.Index(t[2], "emerge") != -1 {
-			return pp, nil
-		}
-	}
-	return pp, nil // If we reach this point, we basically return PID 1
 }
 
 type runningCompile struct {
@@ -326,4 +302,48 @@ func findCompileHist(fd *os.File, running map[string]bool) ([]compileHist, map[s
 		}
 	}
 	return compiles, nip, durations
+}
+
+func Processes(dirname string) ([]Process, error) {
+	var ps []Process
+	entries, err := ioutil.ReadDir(dirname)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		fp := path.Join(dirname, entry.Name())
+		fi, err := os.Stat(fp)
+		if err != nil {
+			continue
+		}
+		if fi.IsDir() {
+			var p Process
+			p.PID, err = strconv.ParseUint(entry.Name(), 10, 64)
+			if err == nil {
+				data, err := ioutil.ReadFile(path.Join(fp, "cmdline"))
+				if err != nil {
+					continue
+				}
+				p.Cmdline = dropEmptyStr(strings.Split(string(data), "\000"))
+				ps = append(ps, p)
+			}
+		}
+
+	}
+	return ps, nil
+}
+
+type Process struct {
+	PID     uint64
+	Cmdline []string
+}
+
+func dropEmptyStr(ss []string) []string {
+	var r []string
+	for _, s := range ss {
+		if s != "" {
+			r = append(r, s)
+		}
+	}
+	return r
 }

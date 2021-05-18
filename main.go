@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	golopVersion = "0.2.0"
+	golopVersion = "0.2.1"
 )
 
 var (
@@ -31,7 +31,6 @@ var (
 	modeHistory  = flag.Bool("e", true, "Show history")
 	modeVersion  = flag.Bool("v", false, "Show golop version information and exit")
 	logfilename  = flag.String("l", "/var/log/emerge.log", "Location of emerge log to parse.")
-	procroot     = flag.String("r", "/proc", "Root of /proc filesystem")
 )
 
 func main() {
