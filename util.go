@@ -184,7 +184,7 @@ func tabulate(p []compileStatus, longest int) string {
 
 func runningCompiles() ([]runningCompile, error) {
 	var currpkgs []runningCompile
-	pl, err := Processes(*procDir)
+	pl, err := processes(*procDir)
 	if err != nil {
 		return nil, err
 	}
@@ -291,8 +291,8 @@ func findCompileHist(fd *os.File, running map[string]bool) ([]compileHist, map[s
 	return compiles, nip, durations
 }
 
-func Processes(dirname string) ([]Process, error) {
-	var ps []Process
+func processes(dirname string) ([]process, error) {
+	var ps []process
 	entries, err := ioutil.ReadDir(dirname)
 	if err != nil {
 		return nil, err
@@ -304,7 +304,7 @@ func Processes(dirname string) ([]Process, error) {
 			continue
 		}
 		if fi.IsDir() {
-			var p Process
+			var p process
 			p.PID, err = strconv.ParseUint(entry.Name(), 10, 64)
 			if err == nil {
 				data, err := ioutil.ReadFile(path.Join(fp, "cmdline"))
@@ -320,7 +320,7 @@ func Processes(dirname string) ([]Process, error) {
 	return ps, nil
 }
 
-type Process struct {
+type process struct {
 	PID     uint64
 	Cmdline []string
 }
